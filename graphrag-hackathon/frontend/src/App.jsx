@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import {
   Network, Clock, DollarSign, Hash, CheckCircle2, XCircle,
-  TrendingDown, ArrowUp, BarChart2, AlertCircle, Plus, Globe, Settings, MessageSquare
+  TrendingDown, ArrowUp, BarChart2, AlertCircle, Plus, Globe, Settings, MessageSquare, Menu, X
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -24,7 +24,7 @@ const SUGGESTED_QUESTIONS = [
 
 function MetricRow({ icon: Icon, label, value, color }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifycontent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13 }}>
         <Icon size={14} />
         <span>{label}</span>
@@ -59,6 +59,7 @@ export default function App() {
   const [error, setError]             = useState('');
   const [graphHealth, setGraphHealth] = useState(null);
   const [history, setHistory]         = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     axios.get(`${API_BASE}/graph-health`)
@@ -75,6 +76,7 @@ export default function App() {
     const trimmed = queryText.trim();
     if (!trimmed) return;
     setLoading(true); setError(''); setResult(null);
+    setSidebarOpen(false); // Close sidebar on mobile when query starts
     try {
       const { data } = await axios.post(`${API_BASE}/compare`, {
         question: trimmed,
@@ -112,20 +114,32 @@ export default function App() {
       <div className="atmospheric-bg" />
 
       <div className="app-layout">
+        {/* Mobile Sidebar Overlay */}
+        {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
+
         {/* Left Sidebar */}
-        <aside className="sidebar">
+        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div>
-            <div className="sidebar-logo">
-              <div style={{ background: 'var(--accent-blue)', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Network size={16} color="#fff" />
+            <div className="sidebar-logo" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center', width: '100%' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ background: 'var(--accent-blue)', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Network size={16} color="#fff" />
+                </div>
+                <span className="sidebar-logo-text">GraphRAG Bench</span>
               </div>
-              <span className="sidebar-logo-text">GraphRAG Bench</span>
+              <button 
+                className="menu-toggle-btn" 
+                onClick={() => setSidebarOpen(false)} 
+                style={{ display: 'var(--display-mobile-only, none)' }}
+              >
+                <X size={18} />
+              </button>
             </div>
 
             <nav className="sidebar-nav">
               <button 
                 className={`sidebar-link ${showResultsEmpty ? 'active' : ''}`}
-                onClick={() => { setQuestion(''); setResult(null); setError(''); }}
+                onClick={() => { setQuestion(''); setResult(null); setError(''); setSidebarOpen(false); }}
               >
                 <Plus size={16} />
                 <span>New Comparison</span>
@@ -174,14 +188,22 @@ export default function App() {
         {/* Right Main Content Panel */}
         <main className="main-panel scrollbar-thin">
           
+          {/* Mobile Top Header */}
+          <div className="mobile-header">
+            <button className="menu-toggle-btn" onClick={() => setSidebarOpen(true)}>
+              <Menu size={20} />
+            </button>
+            <span className="mobile-header-title">GraphRAG Bench</span>
+          </div>
+
           <div 
             className="chat-container" 
             style={{ 
               display: 'flex', 
               flexDirection: 'column', 
               justifyContent: showResultsEmpty ? 'center' : 'flex-start',
-              minHeight: showResultsEmpty ? '100vh' : 'auto',
-              paddingTop: showResultsEmpty ? 40 : 60,
+              minHeight: showResultsEmpty ? 'calc(100vh - 56px)' : 'auto',
+              paddingTop: showResultsEmpty ? 40 : 30,
               transition: 'all 0.3s ease-in-out'
             }}
           >
@@ -213,12 +235,12 @@ export default function App() {
                 className="chat-input-textarea scrollbar-thin"
               />
               <div className="chat-input-actions">
-                <div className="chat-actions-left">
+                <div className="chat-input-actions">
                   <button className="chat-action-btn" title="Configuration Settings">
                     <Settings size={14} />
                     <span>Config</span>
                   </button>
-                  <button className="chat-action-btn" title="Web Search Fallback">
+                  <button className="chat-action-btn" style={{ marginLeft: 8 }} title="Web Search Fallback">
                     <Globe size={14} />
                     <span>Search</span>
                   </button>
@@ -268,7 +290,7 @@ export default function App() {
 
           {/* Results Display Area */}
           {result && !loading && (
-            <section className="fade-up" style={{ padding: '0 32px 60px', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
+            <section className="fade-up" style={{ padding: '0 24px 60px', maxWidth: 1400, margin: '0 auto', width: '100%' }}>
               
               {/* Token Savings Banner */}
               <div className="glass-card" style={{ padding: 20, marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>

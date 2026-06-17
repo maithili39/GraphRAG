@@ -9,6 +9,7 @@ export default defineConfig({
       "/query": "http://localhost:8080",
       "/results": "http://localhost:8080",
       "/health": "http://localhost:8080",
+      "/graph-health": "http://localhost:8080",
     },
   },
 });
