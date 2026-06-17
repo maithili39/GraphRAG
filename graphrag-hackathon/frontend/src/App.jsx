@@ -59,15 +59,18 @@ export default function App() {
   const [error, setError]             = useState('');
   const [graphHealth, setGraphHealth] = useState(null);
   
-  // Sidebar states
+  // Sidebar and search states
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [searchMenuOpen, setSearchMenuOpen] = useState(false);
 
   // Configuration Settings State
   const [configOpen, setConfigOpen]   = useState(false);
   const [apiKey, setApiKey]           = useState('');
   const [configStatus, setConfigStatus] = useState('');
-  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  
+  // Theme configuration State
+  const [theme, setTheme]             = useState(() => localStorage.getItem('benchmark_theme') || 'dark');
 
   const [history, setHistory]         = useState(() => {
     try {
@@ -76,6 +79,16 @@ export default function App() {
       return [];
     }
   });
+
+  // Track Theme Switches
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+    localStorage.setItem('benchmark_theme', theme);
+  }, [theme]);
 
   useEffect(() => {
     fetchGraphHealth();
@@ -97,6 +110,7 @@ export default function App() {
     if (!trimmed) return;
     setLoading(true); setError(''); setResult(null);
     setSidebarOpen(false); // Close mobile menu if open
+    setSearchMenuOpen(false); // Close search dropdown
     try {
       const { data } = await axios.post(`${API_BASE}/compare`, {
         question: trimmed,
@@ -156,11 +170,19 @@ export default function App() {
     <>
       <div className="atmospheric-bg" />
 
+      {/* Invisible Overlay to close the Search Presets Menu */}
+      {searchMenuOpen && (
+        <div 
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 55 }} 
+          onClick={() => setSearchMenuOpen(false)} 
+        />
+      )}
+
       <div className="app-layout">
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
 
-        {/* Floating Sidebar Open Button (visible only when sidebar is collapsed on desktop) */}
+        {/* Floating Sidebar Open Button */}
         {sidebarCollapsed && (
           <button 
             className="sidebar-toggle-floating-btn" 
@@ -193,7 +215,7 @@ export default function App() {
                 <button 
                   className="menu-toggle-btn mobile-only-btn" 
                   onClick={() => setSidebarOpen(false)} 
-                  style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 6 }}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 6 }}
                 >
                   <X size={18} />
                 </button>
@@ -272,26 +294,26 @@ export default function App() {
               transition: 'all 0.3s ease-in-out'
             }}
           >
-            {/* Title / Heading */}
+            {/* Unique Title / Heading */}
             <div style={{ marginBottom: showResultsEmpty ? 36 : 24, textAlign: 'center' }}>
               <h2 style={{ 
-                fontSize: showResultsEmpty ? 38 : 26, 
-                fontWeight: 700, 
+                fontSize: showResultsEmpty ? 36 : 26, 
+                fontWeight: 800, 
                 color: 'var(--text-primary)', 
                 letterSpacing: '-0.02em',
                 transition: 'all 0.3s'
               }}>
-                {showResultsEmpty ? "What's on your mind today?" : "Compare Retrieval Pipelines"}
+                {showResultsEmpty ? "Navigate the Knowledge Nexus" : "Compare Retrieval Pipelines"}
               </h2>
               {showResultsEmpty && (
                 <p style={{ fontSize: 15, color: 'var(--text-secondary)', marginTop: 8 }}>
-                  Benchmark LLM-Only, Basic RAG, and GraphRAG side-by-side.
+                  Compare semantic search against multi-layered entity graphs and baseline models in real-time.
                 </p>
               )}
             </div>
 
             {/* Chat-Style Input Box */}
-            <div className="chat-input-wrapper">
+            <div className="chat-input-wrapper" style={{ position: 'relative' }}>
               <textarea
                 value={question}
                 onChange={e => setQuestion(e.target.value)}
@@ -300,23 +322,41 @@ export default function App() {
                 className="chat-input-textarea scrollbar-thin"
               />
               <div className="chat-input-actions">
-                <div className="chat-actions-left" style={{ display: 'flex', gap: 8 }}>
+                <div className="chat-actions-left" style={{ display: 'flex', gap: 8, position: 'relative' }}>
                   <button 
                     className="chat-action-btn" 
-                    title="Configure API Keys & Parameters"
+                    title="Configure API Keys & Theme"
                     onClick={() => setConfigOpen(true)}
                   >
                     <Settings size={14} />
                     <span>Config</span>
                   </button>
                   <button 
-                    className={`chat-action-btn ${webSearchEnabled ? 'active-search' : ''}`}
-                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-                    title="Toggle Web Search fallback (Mocked)"
+                    className="chat-action-btn"
+                    onClick={() => setSearchMenuOpen(!searchMenuOpen)}
+                    title="Select a query template"
                   >
-                    <Globe size={14} color={webSearchEnabled ? '#3b82f6' : 'var(--text-secondary)'} />
-                    <span>Search {webSearchEnabled ? '(On)' : '(Off)'}</span>
+                    <Globe size={14} />
+                    <span>Search Presets</span>
                   </button>
+
+                  {/* suggested queries selector list */}
+                  {searchMenuOpen && (
+                    <div className="search-dropdown">
+                      <div className="search-dropdown-title">Suggested Queries</div>
+                      <div className="search-dropdown-list scrollbar-thin">
+                        {SUGGESTED_QUESTIONS.map((q, idx) => (
+                          <button 
+                            key={idx}
+                            className="search-dropdown-item"
+                            onClick={() => { setQuestion(q); setSearchMenuOpen(false); }}
+                          >
+                            {q}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={handleRun}
@@ -467,10 +507,42 @@ export default function App() {
             </div>
             
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Enter a valid <strong>Groq API Key</strong> to configure the LLM pipelines. This key is saved in the server's local environment.
+              Manage your Groq API Key and Dashboard visual theme preferences.
             </p>
 
             <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Theme Settings Selector */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Dashboard Theme</label>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setTheme('dark')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                      background: theme === 'dark' ? 'var(--accent-blue)' : 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.08)', color: '#fff', cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Dark Mode
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTheme('light')}
+                    style={{
+                      flex: 1, padding: '10px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+                      background: theme === 'light' ? 'var(--accent-blue)' : 'rgba(0,0,0,0.2)',
+                      border: '1px solid rgba(255,255,255,0.08)', color: '#fff', cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Light Mode
+                  </button>
+                </div>
+              </div>
+
+              {/* API Key Input */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Groq API Key</label>
                 <input
