@@ -1,0 +1,16 @@
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+faiss-cpu
+fastembed
+tiktoken
+requests
+groq
+numpy
+google-generativeai
+neo4j
+bert_score
+pandas
+tqdm
+torch

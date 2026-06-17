@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.env
+.venv
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Project Data
+data/neo4j_progress.json
+*.pkl
+*.faiss
+data/raw/graphrag_docs.jsonl
+
+# OS
+.DS_Store
+
+# Node
+node_modules/
+frontend/node_modules/
+eval/results/
+data/raw/
+*.log
