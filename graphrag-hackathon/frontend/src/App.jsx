@@ -58,7 +58,13 @@ export default function App() {
   const [result, setResult]           = useState(null);
   const [error, setError]             = useState('');
   const [graphHealth, setGraphHealth] = useState(null);
-  const [history, setHistory]         = useState([]);
+  const [history, setHistory]         = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('benchmark_history') || '[]');
+    } catch {
+      return [];
+    }
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -85,7 +91,9 @@ export default function App() {
       setResult(data);
       setHistory(prev => {
         if (prev.includes(trimmed)) return prev;
-        return [trimmed, ...prev];
+        const next = [trimmed, ...prev];
+        localStorage.setItem('benchmark_history', JSON.stringify(next));
+        return next;
       });
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
@@ -122,9 +130,7 @@ export default function App() {
           <div>
             <div className="sidebar-logo" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ background: 'var(--accent-blue)', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Network size={16} color="#fff" />
-                </div>
+                <img src="/logo.png" alt="Logo" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
                 <span className="sidebar-logo-text">GraphRAG Bench</span>
               </div>
               <button 
