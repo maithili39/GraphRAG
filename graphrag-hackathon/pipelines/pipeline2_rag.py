@@ -30,18 +30,19 @@ def _embed(text: str):
     return emb / (norm + 1e-10)
 
 
-def pipeline2(question: str, top_k: int = 5) -> dict:
+def pipeline2(question: str, top_k: int = 3) -> dict:
     _load()
     emb = _embed(question)
     _, idxs = _index.search(emb, top_k)
 
     retrieved = [_chunks[i] for i in idxs[0] if i < len(_chunks)]
-    context = '\n\n---\n\n'.join(c['text'] for c in retrieved)
+    # Truncate each chunk to 300 chars to keep prompt compact and reduce latency
+    context = '\n\n---\n\n'.join(c['text'][:300] for c in retrieved)
     sources = [c.get('source', c.get('title', '')) for c in retrieved]
 
-    prompt = f'Context:\n{context}\n\nQuestion: {question}\nAnswer thoroughly.'
+    prompt = f'Context:\n{context}\n\nQuestion: {question}\nAnswer concisely and accurately.'
     start = time.time()
-    answer = groq_generate(_client, prompt)
+    answer = groq_generate(_client, prompt, max_tokens=120)
     latency = round(time.time() - start, 3)
 
     p_tok = count_tokens(prompt)

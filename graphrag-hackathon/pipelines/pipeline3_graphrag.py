@@ -3,6 +3,7 @@ Pipeline 3 — GraphRAG via Neo4j
 Retrieval: FAISS seed → Neo4j entity graph expansion → compact context → Groq answer
 """
 import os, pickle, time, logging
+import numpy as np
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -19,16 +20,20 @@ _chunks      = None
 _groq_client = None
 
 
+_faiss_index = None  # shared FAISS index for fallback
+
+
 def _load():
-    global _embedder, _driver, _chunks, _groq_client
+    global _embedder, _driver, _chunks, _groq_client, _faiss_index
     if _embedder is None:
         import faiss
         from fastembed import TextEmbedding
         from neo4j import GraphDatabase
-        
-        _embedder = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
-        _chunks   = pickle.load(open(str(_ROOT / 'data/chunks/chunks.pkl'), 'rb'))
-        _driver   = GraphDatabase.driver(
+
+        _embedder    = TextEmbedding("sentence-transformers/all-MiniLM-L6-v2")
+        _chunks      = pickle.load(open(str(_ROOT / 'data/chunks/chunks.pkl'), 'rb'))
+        _faiss_index = faiss.read_index(str(_ROOT / 'data/chunks/rag_index.faiss'))
+        _driver      = GraphDatabase.driver(
             os.getenv("NEO4J_URI", "bolt://localhost:7687"),
             auth=(os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "graphrag1234"))
         )
@@ -94,8 +99,17 @@ def _neo4j_retrieve(question: str) -> list[str]:
                 if rec["chunkText"]:
                     results.append(rec["chunkText"].strip())
     except Exception as e:
-        logger.warning("Neo4j retrieval error: %s — falling back to empty", e)
-    
+        logger.warning("Neo4j retrieval error: %s — falling back to FAISS", e)
+
+    # Fallback: if Neo4j returned nothing, use FAISS directly
+    if not results:
+        logger.info("Neo4j returned no results — using FAISS fallback")
+        emb = np.array(_embed(question), dtype=np.float32).reshape(1, -1)
+        _, idxs = _faiss_index.search(emb, 3)
+        for i in idxs[0]:
+            if i < len(_chunks):
+                results.append(_chunks[i]['text'][:200])  # keep fallback compact
+
     return results
 
 
