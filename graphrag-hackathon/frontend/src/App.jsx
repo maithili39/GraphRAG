@@ -24,7 +24,7 @@ const SUGGESTED_QUESTIONS = [
 
 function MetricRow({ icon: Icon, label, value, color }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifycontent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13 }}>
         <Icon size={14} />
         <span>{label}</span>
@@ -58,6 +58,17 @@ export default function App() {
   const [result, setResult]           = useState(null);
   const [error, setError]             = useState('');
   const [graphHealth, setGraphHealth] = useState(null);
+  
+  // Sidebar states
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Configuration Settings State
+  const [configOpen, setConfigOpen]   = useState(false);
+  const [apiKey, setApiKey]           = useState('');
+  const [configStatus, setConfigStatus] = useState('');
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+
   const [history, setHistory]         = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('benchmark_history') || '[]');
@@ -65,13 +76,16 @@ export default function App() {
       return [];
     }
   });
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
+    fetchGraphHealth();
+  }, []);
+
+  function fetchGraphHealth() {
     axios.get(`${API_BASE}/graph-health`)
       .then(r => setGraphHealth(r.data))
       .catch(() => setGraphHealth({ status: 'error' }));
-  }, []);
+  }
 
   async function handleRun(e) {
     if (e) e.preventDefault();
@@ -82,7 +96,7 @@ export default function App() {
     const trimmed = queryText.trim();
     if (!trimmed) return;
     setLoading(true); setError(''); setResult(null);
-    setSidebarOpen(false); // Close sidebar on mobile when query starts
+    setSidebarOpen(false); // Close mobile menu if open
     try {
       const { data } = await axios.post(`${API_BASE}/compare`, {
         question: trimmed,
@@ -95,6 +109,7 @@ export default function App() {
         localStorage.setItem('benchmark_history', JSON.stringify(next));
         return next;
       });
+      fetchGraphHealth(); // refresh chunks counter
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -108,6 +123,26 @@ export default function App() {
       runPipeline(question);
     }
   };
+
+  async function handleSaveConfig(e) {
+    if (e) e.preventDefault();
+    if (!apiKey.trim()) {
+      setConfigStatus('Please enter a valid key.');
+      return;
+    }
+    setConfigStatus('Saving key...');
+    try {
+      await axios.post(`${API_BASE}/save-config`, { groq_api_key: apiKey.trim() });
+      setConfigStatus('Saved successfully!');
+      setTimeout(() => {
+        setConfigOpen(false);
+        setConfigStatus('');
+        setApiKey('');
+      }, 1200);
+    } catch (err) {
+      setConfigStatus(`Error: ${err.response?.data?.detail || err.message}`);
+    }
+  }
 
   const chartData = result
     ? ['llm_only', 'basic_rag', 'graphrag'].map(k => ({
@@ -125,21 +160,44 @@ export default function App() {
         {/* Mobile Sidebar Overlay */}
         {sidebarOpen && <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />}
 
+        {/* Floating Sidebar Open Button (visible only when sidebar is collapsed on desktop) */}
+        {sidebarCollapsed && (
+          <button 
+            className="sidebar-toggle-floating-btn" 
+            onClick={() => setSidebarCollapsed(false)} 
+            title="Open sidebar"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/></svg>
+          </button>
+        )}
+
         {/* Left Sidebar */}
-        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <aside className={`sidebar ${sidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
           <div>
             <div className="sidebar-logo" style={{ justifyContent: 'space-between', display: 'flex', alignItems: 'center', width: '100%' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <img src="/logo.png" alt="Logo" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
                 <span className="sidebar-logo-text">GraphRAG Bench</span>
               </div>
-              <button 
-                className="menu-toggle-btn" 
-                onClick={() => setSidebarOpen(false)} 
-                style={{ display: 'var(--display-mobile-only, none)' }}
-              >
-                <X size={18} />
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                {/* Desktop Collapse Sidebar Button */}
+                <button 
+                  className="menu-toggle-btn desktop-only-btn" 
+                  onClick={() => setSidebarCollapsed(true)} 
+                  title="Collapse sidebar"
+                  style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 6, borderRadius: 6 }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
+                </button>
+                {/* Mobile Close Button */}
+                <button 
+                  className="menu-toggle-btn mobile-only-btn" 
+                  onClick={() => setSidebarOpen(false)} 
+                  style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 6 }}
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <nav className="sidebar-nav">
@@ -209,7 +267,8 @@ export default function App() {
               flexDirection: 'column', 
               justifyContent: showResultsEmpty ? 'center' : 'flex-start',
               minHeight: showResultsEmpty ? 'calc(100vh - 56px)' : 'auto',
-              paddingTop: showResultsEmpty ? 40 : 30,
+              paddingTop: showResultsEmpty ? (sidebarCollapsed ? 60 : 40) : 30,
+              paddingLeft: sidebarCollapsed ? 64 : 24,
               transition: 'all 0.3s ease-in-out'
             }}
           >
@@ -241,14 +300,22 @@ export default function App() {
                 className="chat-input-textarea scrollbar-thin"
               />
               <div className="chat-input-actions">
-                <div className="chat-input-actions">
-                  <button className="chat-action-btn" title="Configuration Settings">
+                <div className="chat-actions-left" style={{ display: 'flex', gap: 8 }}>
+                  <button 
+                    className="chat-action-btn" 
+                    title="Configure API Keys & Parameters"
+                    onClick={() => setConfigOpen(true)}
+                  >
                     <Settings size={14} />
                     <span>Config</span>
                   </button>
-                  <button className="chat-action-btn" style={{ marginLeft: 8 }} title="Web Search Fallback">
-                    <Globe size={14} />
-                    <span>Search</span>
+                  <button 
+                    className={`chat-action-btn ${webSearchEnabled ? 'active-search' : ''}`}
+                    onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                    title="Toggle Web Search fallback (Mocked)"
+                  >
+                    <Globe size={14} color={webSearchEnabled ? '#3b82f6' : 'var(--text-secondary)'} />
+                    <span>Search {webSearchEnabled ? '(On)' : '(Off)'}</span>
                   </button>
                 </div>
                 <button
@@ -372,6 +439,85 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {/* Configuration Modal overlay */}
+      {configOpen && (
+        <div 
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 100, padding: 16
+          }} 
+          onClick={() => setConfigOpen(false)}
+        >
+          <div 
+            className="glass-card" 
+            style={{
+              maxWidth: 500, width: '100%', padding: 28,
+              display: 'flex', flexDirection: 'column', gap: 20
+            }} 
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>Configuration Settings</h3>
+              <button className="menu-toggle-btn" onClick={() => setConfigOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+              Enter a valid <strong>Groq API Key</strong> to configure the LLM pipelines. This key is saved in the server's local environment.
+            </p>
+
+            <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Groq API Key</label>
+                <input
+                  type="password"
+                  value={apiKey}
+                  onChange={e => setApiKey(e.target.value)}
+                  placeholder="gsk_..."
+                  style={{
+                    background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#fff', outline: 'none'
+                  }}
+                />
+              </div>
+
+              {configStatus && (
+                <div style={{ 
+                  fontSize: 12, 
+                  color: configStatus.includes('successfully') ? '#34d399' : '#fca5a5',
+                  fontWeight: 500 
+                }}>
+                  {configStatus}
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                <button 
+                  type="button" 
+                  className="chat-action-btn"
+                  onClick={() => setConfigOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  style={{
+                    background: 'var(--accent-blue)', color: '#fff', border: 'none',
+                    borderRadius: 8, padding: '10px 20px', fontSize: 14, fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Save Config
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
