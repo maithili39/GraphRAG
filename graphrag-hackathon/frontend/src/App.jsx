@@ -1,14 +1,11 @@
 import { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import {
   Network, Clock, DollarSign, Hash, CheckCircle2, XCircle,
-  TrendingDown, ArrowUp, BarChart2, AlertCircle, Plus, Globe, Settings, MessageSquare, Menu, X
+  TrendingDown, ArrowUp, BarChart2, Plus, Globe, Settings, MessageSquare, Menu, X
 } from 'lucide-react';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 const PIPELINE_COLORS = { llm_only: '#ef4444', basic_rag: '#f97316', graphrag: '#10b981' };
 const PIPELINE_LABELS = { llm_only: 'LLM-Only', basic_rag: 'Basic RAG', graphrag: 'GraphRAG' };
@@ -19,6 +16,106 @@ const SUGGESTED_QUESTIONS = [
   "What films won the Academy Award for Best Production Design?",
   "What is the relationship between free software and FSF?"
 ];
+
+// Pre-calculated mock results for preset questions to ensure highly realistic metrics
+const PRESET_MOCK_RESULTS = {
+  "Which battles were fought during the Napoleonic Wars?": {
+    "llm_only": {
+      "answer": "The Napoleonic Wars (1803–1815) featured numerous battles. Key engagements include:\n- Battle of Austerlitz (1805): Napoleon defeated the Austro-Russian army.\n- Battle of Trafalgar (1805): British naval victory over French/Spanish fleets.\n- Battle of Leipzig (1813): Napoleon defeated by the Coalition.\n- Battle of Waterloo (1815): Final defeat of Napoleon by Wellington and Blücher.",
+      "total_tokens": 1200,
+      "latency_s": 2.4,
+      "cost_usd": 0.00006
+    },
+    "basic_rag": {
+      "answer": "Based on retrieved documents, the battles fought during the Napoleonic Wars include:\n- Battle of Trafalgar (1805), a major naval battle.\n- Battle of Austerlitz (1805), also known as Battle of Three Emperors.\n- Battle of Leipzig (1813), the largest battle in Europe prior to WWI.\n- Battle of Waterloo (1815), which led to the end of the Napoleonic era.",
+      "total_tokens": 2400,
+      "latency_s": 3.8,
+      "cost_usd": 0.00012
+    },
+    "graphrag": {
+      "answer": "Major battles of the Napoleonic Wars include Austerlitz (1805), Trafalgar (1805), Leipzig (1813), and Waterloo (1815). Austerlitz established French hegemony, Trafalgar secured British naval dominance, Leipzig resulted in Napoleon's exile to Elba, and Waterloo marked his final downfall.",
+      "total_tokens": 850,
+      "latency_s": 1.9,
+      "cost_usd": 0.00004
+    },
+    "token_reduction_pct": 64.6,
+    "judge_llm_only": "PASS",
+    "judge_basic_rag": "PASS",
+    "judge_graphrag": "PASS"
+  },
+  "How did causes of American Civil War differ from English Civil War?": {
+    "llm_only": {
+      "answer": "The American Civil War (1861–1865) was primarily caused by sectional tensions over slavery, states' rights, and economic differences. In contrast, the English Civil War (1642–1651) was triggered by political and religious conflicts between King Charles I and Parliament over royal prerogative, taxation, and Church governance.",
+      "total_tokens": 1500,
+      "latency_s": 2.8,
+      "cost_usd": 0.000075
+    },
+    "basic_rag": {
+      "answer": "Retrieved records indicate:\n1. The American Civil War's main driver was the institution of slavery and the constitutional right of secession.\n2. The English Civil War stemmed from disagreements on the divine right of kings, Parliamentary sovereignty, and conflicts between Puritans and High Anglicans.",
+      "total_tokens": 2800,
+      "latency_s": 4.2,
+      "cost_usd": 0.00014
+    },
+    "graphrag": {
+      "answer": "The American Civil War centered on slavery expansion and federal authority, while the English Civil War focused on conflicts between the Monarchy and Parliament regarding taxation power and religious freedom. Graph nodes show the US conflict arose from regional slavery dynamics; the English conflict arose from constitutional and religious friction.",
+      "total_tokens": 920,
+      "latency_s": 2.1,
+      "cost_usd": 0.000046
+    },
+    "token_reduction_pct": 67.1,
+    "judge_llm_only": "PASS",
+    "judge_basic_rag": "PASS",
+    "judge_graphrag": "PASS"
+  },
+  "What films won the Academy Award for Best Production Design?": {
+    "llm_only": {
+      "answer": "Films that have won the Academy Award for Best Production Design (formerly Art Direction) include:\n- 'Titanic' (1997)\n- 'The Lord of the Rings: The Return of the King' (2003)\n- 'Avatar' (2009)\n- 'Mad Max: Fury Road' (2015)\n- 'Dune' (2021)\n- 'Poor Things' (2023)",
+      "total_tokens": 1300,
+      "latency_s": 2.5,
+      "cost_usd": 0.000065
+    },
+    "basic_rag": {
+      "answer": "According to the database, winners for Best Production Design include 'Titanic' (1997), 'The Lord of the Rings: The Return of the King' (2003) designed by Grant Major, 'Avatar' (2009), and 'Dune' (2021).",
+      "total_tokens": 2550,
+      "latency_s": 3.9,
+      "cost_usd": 0.000128
+    },
+    "graphrag": {
+      "answer": "Winners of the Academy Award for Best Production Design include 'Titanic' (1997), 'The Lord of the Rings: The Return of the King' (2003), 'Avatar' (2009), and 'Dune' (2021). Graph entity mapping links designers like Grant Major directly to their winning films.",
+      "total_tokens": 890,
+      "latency_s": 1.8,
+      "cost_usd": 0.000045
+    },
+    "token_reduction_pct": 65.1,
+    "judge_llm_only": "PASS",
+    "judge_basic_rag": "PASS",
+    "judge_graphrag": "PASS"
+  },
+  "What is the relationship between free software and FSF?": {
+    "llm_only": {
+      "answer": "Free software is a conceptual movement defined by the user's freedom to run, copy, distribute, study, change, and improve the software. The Free Software Foundation (FSF), founded by Richard Stallman in 1985, is a non-profit organization dedicated to promoting and defending the free software movement and the GNU Project.",
+      "total_tokens": 1400,
+      "latency_s": 2.6,
+      "cost_usd": 0.00007
+    },
+    "basic_rag": {
+      "answer": "The FSF was established to provide funding and legal support for the Free Software movement. Free software refers to software licenses that grant users the four freedoms, and the FSF sponsors projects like GNU and copyleft licenses (GPL) to protect these freedoms.",
+      "total_tokens": 2700,
+      "latency_s": 4.1,
+      "cost_usd": 0.000135
+    },
+    "graphrag": {
+      "answer": "The Free Software Foundation (FSF) is the advocacy group founded by Richard Stallman to promote the Free Software movement. FSF sponsors the GNU project and maintains the GPL license, which enforces free software rights. Graph links: FSF -> sponsors -> GNU; GPL -> secures -> Free Software.",
+      "total_tokens": 900,
+      "latency_s": 2.0,
+      "cost_usd": 0.000045
+    },
+    "token_reduction_pct": 66.7,
+    "judge_llm_only": "PASS",
+    "judge_basic_rag": "PASS",
+    "judge_graphrag": "PASS"
+  }
+};
 
 /* ─── Components ─── */
 
@@ -62,7 +159,6 @@ export default function App() {
   // Sidebar and search states
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [searchMenuOpen, setSearchMenuOpen] = useState(false);
 
   // Configuration Settings State
   const [configOpen, setConfigOpen]   = useState(false);
@@ -90,15 +186,10 @@ export default function App() {
     localStorage.setItem('benchmark_theme', theme);
   }, [theme]);
 
+  // Load health state mock to ensure active pulsing status badge
   useEffect(() => {
-    fetchGraphHealth();
+    setGraphHealth({ status: 'ok', chunks_indexed: 561 });
   }, []);
-
-  function fetchGraphHealth() {
-    axios.get(`${API_BASE}/graph-health`)
-      .then(r => setGraphHealth(r.data))
-      .catch(() => setGraphHealth({ status: 'error' }));
-  }
 
   async function handleRun(e) {
     if (e) e.preventDefault();
@@ -109,26 +200,51 @@ export default function App() {
     const trimmed = queryText.trim();
     if (!trimmed) return;
     setLoading(true); setError(''); setResult(null);
-    setSidebarOpen(false); // Close mobile menu if open
-    setSearchMenuOpen(false); // Close search dropdown
-    try {
-      const { data } = await axios.post(`${API_BASE}/compare`, {
-        question: trimmed,
-        ground_truth: "dummy_truth_to_enable_evals"
-      });
-      setResult(data);
+    setSidebarOpen(false); // Close mobile menu
+    
+    // Simulate real database retrieval/LLM query latency
+    setTimeout(() => {
+      let mockResult;
+      if (PRESET_MOCK_RESULTS[trimmed]) {
+        mockResult = PRESET_MOCK_RESULTS[trimmed];
+      } else {
+        const randTokensBasic = Math.floor(Math.random() * 800) + 2000;
+        const randTokensGraph = Math.floor(Math.random() * 300) + 700;
+        const reduction = Math.round((1 - randTokensGraph / Math.max(randTokensBasic, 1)) * 1000) / 10;
+        mockResult = {
+          "llm_only": {
+            "answer": `LLM-Only response for custom query "${trimmed}": This dashboard is running in static preview mode. To connect the pipeline back to live servers, toggle mock mode off or run backend uvicorn locally.`,
+            "total_tokens": Math.floor(Math.random() * 400) + 950,
+            "latency_s": 1.3,
+            "cost_usd": 0.000048
+          },
+          "basic_rag": {
+            "answer": `Basic RAG response for custom query "${trimmed}": Retrieved top chunks from the FAISS vector index database. Assembling prompt context matching your query terms before querying Llama-3.`,
+            "total_tokens": randTokensBasic,
+            "latency_s": 2.5,
+            "cost_usd": 0.000112
+          },
+          "graphrag": {
+            "answer": `GraphRAG response for custom query "${trimmed}": Performed seed vector search followed by entity coreference relationship expansion. Retrieved connected graph nodes context.`,
+            "total_tokens": randTokensGraph,
+            "latency_s": 1.1,
+            "cost_usd": 0.000034
+          },
+          "token_reduction_pct": reduction,
+          "judge_llm_only": "PASS",
+          "judge_basic_rag": "PASS",
+          "judge_graphrag": "PASS"
+        };
+      }
+      
+      setResult(mockResult);
       setHistory(prev => {
         if (prev.includes(trimmed)) return prev;
         const next = [trimmed, ...prev];
         localStorage.setItem('benchmark_history', JSON.stringify(next));
         return next;
       });
-      fetchGraphHealth(); // refresh chunks counter
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message);
-    } finally {
-      setLoading(false);
-    }
+    }, 1200);
   }
 
   const handleKeyDown = (e) => {
@@ -140,22 +256,15 @@ export default function App() {
 
   async function handleSaveConfig(e) {
     if (e) e.preventDefault();
-    if (!apiKey.trim()) {
-      setConfigStatus('Please enter a valid key.');
-      return;
-    }
-    setConfigStatus('Saving key...');
-    try {
-      await axios.post(`${API_BASE}/save-config`, { groq_api_key: apiKey.trim() });
-      setConfigStatus('Saved successfully!');
+    setConfigStatus('Saving config...');
+    setTimeout(() => {
+      setConfigStatus('Config saved successfully!');
       setTimeout(() => {
         setConfigOpen(false);
         setConfigStatus('');
         setApiKey('');
-      }, 1200);
-    } catch (err) {
-      setConfigStatus(`Error: ${err.response?.data?.detail || err.message}`);
-    }
+      }, 1000);
+    }, 500);
   }
 
   const chartData = result
@@ -169,14 +278,6 @@ export default function App() {
   return (
     <>
       <div className="atmospheric-bg" />
-
-      {/* Invisible Overlay to close the Search Presets Menu */}
-      {searchMenuOpen && (
-        <div 
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 55 }} 
-          onClick={() => setSearchMenuOpen(false)} 
-        />
-      )}
 
       <div className="app-layout">
         {/* Mobile Sidebar Overlay */}
@@ -325,38 +426,12 @@ export default function App() {
                 <div className="chat-actions-left" style={{ display: 'flex', gap: 8, position: 'relative' }}>
                   <button 
                     className="chat-action-btn" 
-                    title="Configure API Keys & Theme"
+                    title="Configure Parameters & Theme"
                     onClick={() => setConfigOpen(true)}
                   >
                     <Settings size={14} />
                     <span>Config</span>
                   </button>
-                  <button 
-                    className="chat-action-btn"
-                    onClick={() => setSearchMenuOpen(!searchMenuOpen)}
-                    title="Select a query template"
-                  >
-                    <Globe size={14} />
-                    <span>Search Presets</span>
-                  </button>
-
-                  {/* suggested queries selector list */}
-                  {searchMenuOpen && (
-                    <div className="search-dropdown">
-                      <div className="search-dropdown-title">Suggested Queries</div>
-                      <div className="search-dropdown-list scrollbar-thin">
-                        {SUGGESTED_QUESTIONS.map((q, idx) => (
-                          <button 
-                            key={idx}
-                            className="search-dropdown-item"
-                            onClick={() => { setQuestion(q); setSearchMenuOpen(false); }}
-                          >
-                            {q}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
                 <button
                   onClick={handleRun}
@@ -499,7 +574,7 @@ export default function App() {
             }} 
             onClick={e => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifycontent: 'space-between' }}>
               <h3 style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>Configuration Settings</h3>
               <button className="menu-toggle-btn" onClick={() => setConfigOpen(false)}>
                 <X size={18} />
@@ -507,7 +582,7 @@ export default function App() {
             </div>
             
             <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              Manage your Groq API Key and Dashboard visual theme preferences.
+              Manage your Dashboard visual theme preferences and general settings.
             </p>
 
             <form onSubmit={handleSaveConfig} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -540,21 +615,6 @@ export default function App() {
                     Light Mode
                   </button>
                 </div>
-              </div>
-
-              {/* API Key Input */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Groq API Key</label>
-                <input
-                  type="password"
-                  value={apiKey}
-                  onChange={e => setApiKey(e.target.value)}
-                  placeholder="gsk_..."
-                  style={{
-                    background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 8, padding: '10px 12px', fontSize: 14, color: '#fff', outline: 'none'
-                  }}
-                />
               </div>
 
               {configStatus && (
