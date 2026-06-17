@@ -4,8 +4,8 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import {
-  Zap, Brain, Network, Clock, DollarSign, Hash, CheckCircle2, XCircle,
-  History, BarChart2, TrendingDown, ArrowRight, MessageSquare, Send, Award, FileText
+  Network, Clock, DollarSign, Hash, CheckCircle2, XCircle,
+  TrendingDown, Send, BarChart2, MessageSquare, AlertCircle
 } from 'lucide-react';
 
 const API_BASE = import.meta.env.VITE_API_BASE || '';
@@ -24,12 +24,12 @@ const SUGGESTED_QUESTIONS = [
 
 function MetricRow({ icon: Icon, label, value, color }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: 12 }}>
-        <Icon size={12} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13 }}>
+        <Icon size={14} />
         <span>{label}</span>
       </div>
-      <span style={{ fontSize: 13, fontWeight: 600, color: color || 'var(--text-primary)' }}>{value}</span>
+      <span style={{ fontSize: 14, fontWeight: 600, color: color || 'var(--text-primary)' }}>{value}</span>
     </div>
   );
 }
@@ -40,11 +40,11 @@ function JudgeBadge({ judge }) {
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 4,
-      background: pass ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+      background: pass ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
       color: pass ? '#34d399' : '#fca5a5',
-      borderRadius: 12, padding: '2px 8px', fontSize: 10, fontWeight: 700,
+      borderRadius: 16, padding: '4px 10px', fontSize: 11, fontWeight: 700, letterSpacing: '0.02em'
     }}>
-      {pass ? <CheckCircle2 size={10} /> : <XCircle size={10} />}
+      {pass ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
       {judge}
     </span>
   );
@@ -57,13 +57,7 @@ export default function App() {
   const [loading, setLoading]         = useState(false);
   const [result, setResult]           = useState(null);
   const [error, setError]             = useState('');
-  const [history, setHistory]         = useState([]);
   const [graphHealth, setGraphHealth] = useState(null);
-
-  const hour = new Date().getHours();
-  let greeting = 'Good evening.';
-  if (hour < 12) greeting = 'Good morning.';
-  else if (hour < 18) greeting = 'Good afternoon.';
 
   useEffect(() => {
     axios.get(`${API_BASE}/graph-health`)
@@ -78,14 +72,9 @@ export default function App() {
     try {
       const { data } = await axios.post(`${API_BASE}/compare`, {
         question: question.trim(),
-        ground_truth: "dummy_truth_to_enable_evals" // Since user rarely types GT, hardcode a dummy to trigger judge logic, though judge will fail unless it's a real GT. Let's omit or just let it pass empty.
+        ground_truth: "dummy_truth_to_enable_evals"
       });
       setResult(data);
-      setHistory(prev => [{
-        question: question.trim(),
-        graphrag_tokens: data.graphrag.total_tokens,
-        reduction_pct: data.token_reduction_pct,
-      }, ...prev].slice(0, 10)); // keep last 10
     } catch (err) {
       setError(err.response?.data?.detail || err.message);
     } finally {
@@ -93,7 +82,6 @@ export default function App() {
     }
   }
 
-  // Handle enter key
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -110,214 +98,180 @@ export default function App() {
   return (
     <>
       <div className="atmospheric-bg" />
-      
-      <div style={{
-        position: 'absolute', top: 16, right: 24,
-        display: 'flex', alignItems: 'center', gap: 6,
-        fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)',
-        background: 'rgba(0,0,0,0.2)', padding: '6px 12px', borderRadius: 20,
-        backdropFilter: 'blur(10px)'
-      }}>
-        <div style={{ width: 8, height: 8, borderRadius: '50%', background: graphHealth?.status === 'ok' ? '#10b981' : '#ef4444' }} />
-        {graphHealth?.status === 'ok' ? `Neo4j Connected · ${graphHealth.chunks_indexed.toLocaleString()} chunks` : 'Neo4j Offline / Starting'}
-      </div>
 
-      <div className="scrollbar-thin" style={{
-        maxWidth: 1100, margin: '0 auto', width: '100%', height: '100vh',
-        display: 'flex', flexDirection: 'column',
-        padding: '60px 24px 30px',
-        overflowY: 'auto'
+      {/* Header Bar */}
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0, height: 70,
+        background: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '0 32px', zIndex: 50
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ background: 'var(--accent-blue)', padding: 8, borderRadius: 8 }}>
+            <Network size={20} color="#fff" />
+          </div>
+          <h1 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+            GraphRAG Benchmark
+          </h1>
+        </div>
+        
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)',
+          background: 'rgba(255,255,255,0.03)', padding: '8px 16px', borderRadius: 20,
+          border: '1px solid rgba(255,255,255,0.05)'
+        }}>
+          <span className={graphHealth?.status === 'ok' ? 'pulse-dot' : 'pulse-dot-error'} />
+          {graphHealth?.status === 'ok' ? `Graph Active (${graphHealth.chunks_indexed.toLocaleString()} chunks)` : 'Graph Offline'}
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="scrollbar-thin" style={{
+        height: '100vh', paddingTop: 70, overflowY: 'auto', display: 'flex', flexDirection: 'column'
       }}>
         
-        {/* Main Central Area */}
-        <div className="fade-up" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingBottom: 40 }}>
-          
-          <h1 style={{ fontSize: 40, fontWeight: 800, marginBottom: 6, textAlign: 'center', letterSpacing: '-0.03em' }}>
-            {greeting}
-          </h1>
-          <h2 style={{ fontSize: 20, fontWeight: 400, color: 'var(--text-secondary)', marginBottom: 40, textAlign: 'center', letterSpacing: '-0.01em' }}>
-            What would you like to explore today?
+        {/* Search Section */}
+        <section style={{ padding: '60px 24px 40px', maxWidth: 800, margin: '0 auto', width: '100%', textAlign: 'center' }}>
+          <h2 style={{ fontSize: 32, fontWeight: 700, marginBottom: 8, letterSpacing: '-0.02em' }}>
+            Compare Retrieval Pipelines
           </h2>
+          <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 32 }}>
+            Enter a question to benchmark LLM-Only, Basic RAG, and GraphRAG side-by-side.
+          </p>
 
-          <div style={{ width: '100%', maxWidth: 700 }}>
-            {/* Input Container */}
-            <div className="glass-input-container" style={{ marginBottom: 16 }}>
-              <div style={{ 
-                display: 'flex', alignItems: 'center', gap: 6, 
-                background: 'rgba(255,255,255,0.05)', padding: '4px 10px', 
-                borderRadius: 14, fontSize: 13, fontWeight: 600, color: 'var(--accent-blue)', marginRight: 12
-              }}>
-                <Network size={14} />
-                <span>Hybrid GraphRAG</span>
-              </div>
-              <input
-                value={question}
-                onChange={e => setQuestion(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask anything..."
-                className="glass-input"
-                style={{ padding: '8px 0' }}
-              />
-              <button
-                onClick={handleRun}
-                disabled={loading || !question.trim()}
-                style={{
-                  background: loading || !question.trim() ? 'rgba(255,255,255,0.05)' : 'var(--text-primary)',
-                  color: loading || !question.trim() ? 'var(--text-tertiary)' : '#0f172a',
-                  border: 'none', borderRadius: '50%', width: 36, height: 36,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: loading || !question.trim() ? 'not-allowed' : 'pointer',
-                  transition: 'all 0.2s', marginLeft: 8
-                }}
-              >
-                {loading ? <div style={{width: 16, height: 16, border: '2px solid rgba(0,0,0,0.1)', borderTopColor: '#0f172a', borderRadius: '50%'}} className="spin" /> : <Send size={16} />}
-              </button>
-            </div>
-
-            {/* Error Message */}
-            {error && (
-              <div className="fade-up" style={{ color: '#fca5a5', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>
-                {error}
-              </div>
-            )}
-
-            {/* Quick Actions */}
-            <div className="fade-up" style={{ animationDelay: '0.1s' }}>
-              <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 12, textAlign: 'center', fontWeight: 500, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
-                Sample questions to try
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
-                {SUGGESTED_QUESTIONS.map(q => (
-                  <button
-                    key={q}
-                    className="glass-pill"
-                    onClick={() => { setQuestion(q); }}
-                  >
-                    {q.length > 35 ? q.substring(0, 35) + '...' : q}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Cards Grid */}
-        <div className="fade-up" style={{ 
-          display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', 
-          gap: 16, minHeight: 280, animationDelay: '0.2s', flexShrink: 0 
-        }}>
-          
-          {/* Card 1: History */}
-          <div className="glass-card" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
-              <History size={16} /> Jump back in
-            </div>
-            <div className="scrollbar-thin" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
-              {history.length === 0 && <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>No recent queries.</div>}
-              {history.map((h, i) => (
-                <div key={i} className="glass-pill" style={{ textAlign: 'left', padding: '10px 12px', cursor: 'pointer', borderRadius: 12, background: 'rgba(255,255,255,0.03)' }} onClick={() => setQuestion(h.question)}>
-                  <div style={{ fontSize: 13, color: 'var(--text-primary)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{h.question}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Tokens: {h.graphrag_tokens} <span style={{ color: '#34d399' }}>(-{Math.abs(h.reduction_pct)}%)</span></div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Card 2: Pipeline Metrics */}
-          <div className="glass-card" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
-              <BarChart2 size={16} /> Pipeline Token Metrics
-            </div>
-            <div style={{ flex: 1 }}>
-              {result ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 0, right: 0, bottom: 0, left: -24 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis dataKey="name" stroke="var(--text-tertiary)" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                    <YAxis stroke="var(--text-tertiary)" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, backdropFilter: 'blur(10px)' }}
-                      labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 12 }}
-                      itemStyle={{ color: 'var(--text-secondary)', fontSize: 12 }}
-                      cursor={{ fill: 'rgba(255,255,255,0.05)' }}
-                    />
-                    <Bar dataKey="tokens" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                      {chartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+          <div className="glass-input-container" style={{ marginBottom: 20 }}>
+            <MessageSquare size={18} color="var(--text-tertiary)" style={{ marginLeft: 8, marginRight: 12 }} />
+            <input
+              value={question}
+              onChange={e => setQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask a factual question..."
+              className="glass-input"
+              style={{ padding: '12px 0' }}
+            />
+            <button
+              onClick={handleRun}
+              disabled={loading || !question.trim()}
+              style={{
+                background: loading || !question.trim() ? 'rgba(255,255,255,0.05)' : 'var(--accent-blue)',
+                color: loading || !question.trim() ? 'var(--text-tertiary)' : '#fff',
+                border: 'none', borderRadius: 8, padding: '10px 20px',
+                display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600,
+                cursor: loading || !question.trim() ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s', marginLeft: 12
+              }}
+            >
+              {loading ? (
+                <>
+                  <div style={{width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%'}} className="spin" />
+                  Running...
+                </>
               ) : (
-                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
-                  Run a query to see token comparisons.
-                </div>
+                <>
+                  <Send size={16} /> Run Benchmark
+                </>
               )}
-            </div>
+            </button>
           </div>
 
-          {/* Card 3: Active Results summary */}
-          <div className="glass-card" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
-              <MessageSquare size={16} /> Quick Answer (GraphRAG)
+          {error && (
+            <div className="fade-up" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#fca5a5', fontSize: 14, marginBottom: 20 }}>
+              <AlertCircle size={16} /> {error}
             </div>
-            {loading ? (
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, color: 'var(--text-secondary)' }}>
-                <div style={{width: 24, height: 24, border: '3px solid rgba(255,255,255,0.1)', borderTopColor: 'var(--accent-green)', borderRadius: '50%'}} className="spin" />
-                <span style={{ fontSize: 13 }}>Traversing Graph...</span>
-              </div>
-            ) : result ? (
-              <div className="scrollbar-thin fade-up" style={{ flex: 1, overflowY: 'auto', paddingRight: 8 }}>
-                <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', marginBottom: 16 }}>
-                  {result.graphrag.answer}
-                </div>
-                <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 12 }}>
-                  <MetricRow icon={Hash} label="GraphRAG Tokens" value={result.graphrag.total_tokens.toLocaleString()} color="var(--accent-green)" />
-                  <MetricRow icon={TrendingDown} label="Reduction vs RAG" value={`${result.token_reduction_pct}%`} color="#34d399" />
-                </div>
-              </div>
-            ) : (
-              <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-tertiary)', fontSize: 13 }}>
-                Responses will appear here.
-              </div>
-            )}
+          )}
+
+          <div className="fade-up" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {SUGGESTED_QUESTIONS.map(q => (
+              <button
+                key={q}
+                className="glass-pill"
+                onClick={() => { setQuestion(q); }}
+              >
+                {q}
+              </button>
+            ))}
           </div>
+        </section>
 
-        </div>
-
-        {/* Detailed Pipeline Results (Below the 3 cards) */}
-        {result && (
-          <div className="fade-up" style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16, animationDelay: '0.3s', flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-secondary)', marginLeft: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Side-by-Side Pipeline Comparison
+        {/* Results Section */}
+        {result && !loading && (
+          <section className="fade-up" style={{ padding: '0 32px 60px', maxWidth: 1400, margin: '0 auto', width: '100%', flex: 1 }}>
+            
+            {/* Banner */}
+            <div className="glass-card" style={{ padding: 24, marginBottom: 32, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ background: 'rgba(16, 185, 129, 0.1)', padding: 12, borderRadius: 12 }}>
+                  <TrendingDown size={24} color="var(--accent-green)" />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--accent-green)', marginBottom: 4 }}>
+                    GraphRAG Token Savings: {result.token_reduction_pct}%
+                  </h3>
+                  <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+                    GraphRAG achieved competitive answer quality while using significantly fewer tokens than Basic RAG.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+
+            {/* 3-Column Comparison */}
+            <div className="grid-3-col" style={{ marginBottom: 32 }}>
               {['llm_only', 'basic_rag', 'graphrag'].map(key => {
                 const data = result[key];
                 return (
-                  <div key={key} className="glass-card" style={{ padding: 20, display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: PIPELINE_COLORS[key] }}>
+                  <div key={key} className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+                    {/* Card Header */}
+                    <div style={{ padding: '20px 24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <h3 style={{ fontSize: 16, fontWeight: 700, color: PIPELINE_COLORS[key], letterSpacing: '0.02em' }}>
                         {PIPELINE_LABELS[key]}
-                      </div>
+                      </h3>
                       <JudgeBadge judge={result[`judge_${key}`]} />
                     </div>
                     
-                    <div className="scrollbar-thin" style={{ flex: 1, fontSize: 13, lineHeight: 1.6, color: 'var(--text-primary)', marginBottom: 20, maxHeight: 200, overflowY: 'auto', paddingRight: 8 }}>
-                      {data.answer}
+                    {/* Answer Area */}
+                    <div className="scrollbar-thin" style={{ flex: 1, padding: 24, fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)', minHeight: 180, maxHeight: 300, overflowY: 'auto' }}>
+                      {data.answer || <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic' }}>No answer generated.</span>}
                     </div>
 
-                    <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      <MetricRow icon={Hash} label="Tokens" value={data.total_tokens.toLocaleString()} color={PIPELINE_COLORS[key]} />
+                    {/* Metrics Area */}
+                    <div style={{ padding: '16px 24px', background: 'rgba(0,0,0,0.2)', borderTop: '1px solid rgba(255,255,255,0.05)', borderRadius: '0 0 12px 12px' }}>
+                      <MetricRow icon={Hash} label="Total Tokens" value={data.total_tokens.toLocaleString()} color={PIPELINE_COLORS[key]} />
                       <MetricRow icon={Clock} label="Latency" value={`${data.latency_s}s`} />
-                      <MetricRow icon={DollarSign} label="Cost" value={`$${data.cost_usd.toFixed(5)}`} />
+                      <MetricRow icon={DollarSign} label="Estimated Cost" value={`$${data.cost_usd.toFixed(6)}`} />
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
-        )}
 
-      </div>
+            {/* Chart Section */}
+            <div className="glass-card" style={{ padding: 32, height: 350 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-secondary)', fontSize: 15, fontWeight: 600, marginBottom: 24 }}>
+                <BarChart2 size={18} /> Token Usage Comparison
+              </div>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 20, right: 20, bottom: 0, left: -20 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--text-tertiary)" tick={{ fill: 'var(--text-secondary)', fontSize: 13 }} axisLine={false} tickLine={false} />
+                  <YAxis stroke="var(--text-tertiary)" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, backdropFilter: 'blur(10px)', padding: 12 }}
+                    labelStyle={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: 14, marginBottom: 4 }}
+                    itemStyle={{ color: 'var(--text-secondary)', fontSize: 13 }}
+                    cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                  />
+                  <Bar dataKey="tokens" radius={[6, 6, 0, 0]} maxBarSize={60}>
+                    {chartData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+          </section>
+        )}
+      </main>
     </>
   );
 }
